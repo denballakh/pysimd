@@ -296,12 +296,12 @@ class A:
 
     def is_true(self, /) -> A:
         n = self.data
-        # can be done more efficiently!!! (i just cant figure out how to do that beautifully)
-        for _ in range(self.bits_val):
-            # value can shift to right-neighbour padding, but it is not a problem, we zero them out on the next line
-            n |= n >> 1
-            n &= self._mask_val
-
+        # store 1s in each padding block:
+        n |= self._mask_array_pad
+        # subtract 1:
+        n -= self._mask_array_val
+        # isolate the first padding bit: (it will underflow to 0, iff the starting value was 0)
+        n >>= self.bits_val
         n &= self._mask_array_val
         return A(n, *self._shape)
 
