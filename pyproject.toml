@@ -1,6 +1,6 @@
 [project]
 name = "pysimd"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/denballakh/pysimd"
