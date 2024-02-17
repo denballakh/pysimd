@@ -122,11 +122,11 @@ def test_bit_shift() -> None:
 
 def test_to_bool() -> None:
     assert (
-        A(0x_05_00_03_02_01, *s).is_true() ==
+        A(0x_0f_00_03_02_01, *s).is_true() ==
         A(0x_01_00_01_01_01, *s)
     )
     assert (
-        A(0x_05_00_03_02_01, *s).is_false() ==
+        A(0x_0f_00_03_02_01, *s).is_false() ==
         A(0x_00_01_00_00_00, *s)
     )
 
