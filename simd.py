@@ -163,10 +163,11 @@ class A:
 
     def __iter__(self) -> t.Iterator[int]:
         nbits = self.s.bi * self.s.len
-        bits = bin(self.data)[2:].zfill(nbits)[::-1]
+        bits = f"{self.data:0{nbits}b}"
         for i in range(self.s.len):
-            x = bits[i * self.s.bi : (i + 1) * self.s.bi]
-            yield int(x[: self.s.bv][::-1], 2)
+            # note: we can't use negative indexing for the range end, because it would fail when i==0
+            x = bits[-(i + 1) * self.s.bi + self.s.bp: len(bits) - i * self.s.bi]
+            yield int(x, 2)
 
     def __str__(self, /) -> str:
         res = []

@@ -216,4 +216,7 @@ def test_iter() -> None:
     a = A(0x_05_04_03_02_01, s)
     assert list(a) == [1, 2, 3, 4, 5] # note the "reversed" order
 
+    a = A(0x_056_034_012, simd.S(len=3, bv=8, bp=4))
+    assert list(a) == [0x12, 0x34, 0x56]
+
 # fmt: on
