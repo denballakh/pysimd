@@ -7,8 +7,7 @@ T = t.TypeVar('T')
 # cache wrapper removes type information from wrapped function:
 if t.TYPE_CHECKING:
 
-    def cache(x: T, /) -> T:
-        ...
+    def cache(x: T, /) -> T: ...
 
 else:
     from functools import cache
