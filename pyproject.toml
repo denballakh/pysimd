@@ -5,10 +5,6 @@ requires-python = ">=3.12"
 [project.urls]
 Homepage = "https://github.com/denballakh/pysimd"
 
-[mypy]
-python_version = 3.12
-strict = true
-
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
