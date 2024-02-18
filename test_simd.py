@@ -2,21 +2,21 @@ import simd
 from simd import A, S
 import pytest
 
-# shape for testing:
-s = S(5, 4, 4)  # 5 items, 4 bits for values, 4 bits for padding
-s_small = S(4, 2, 2)
+# shapes for testing:
+s = S(len=5, bv=4, bp=4)
+s_small = S(len=4, bv=2, bp=2)
 
 # fmt: off
 
 def test_init() -> None:
     with pytest.raises(Exception):
-        A(0, S(-1, 4, 4))
+        A(0, S(len=-1, bv=4, bp=4))
     with pytest.raises(Exception):
-        A(0, S(5, 4, 0))
+        A(0, S(len=5, bv=4, bp=0))
     with pytest.raises(Exception):
-        A(0, S(5, 0, 4))
+        A(0, S(len=5, bv=0, bp=4))
     with pytest.raises(Exception):
-        A(-1, S(5, 4, 4))
+        A(-1, S(len=5, bv=4, bp=4))
     with pytest.raises(Exception):
         A(0x_05_04_63_02_01, s)
         #          ^
@@ -54,7 +54,7 @@ def test_eq() -> None:
     )
     assert (
         A(0x_02_04_02_04_02, s) !=
-        A(0x_02_04_02_04_02, S(5, 3, 5))
+        A(0x_02_04_02_04_02, S(len=5, bv=3, bp=5))
     )
 
 def test_from_const() -> None:

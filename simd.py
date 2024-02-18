@@ -39,7 +39,7 @@ class S:
     """
     shape of an array
     """
-
+    _: dataclasses.KW_ONLY
     len: int  # number of items
     bv: int  # number of value bits in each item
     bp: int  # number of padding bits in each item
