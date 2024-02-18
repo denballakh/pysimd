@@ -30,11 +30,13 @@ def mask_array(n: int, bi: int, /) -> int:
            ^        ^            ^        ^ - n items
     ^^^^^^^^ ^^^^^^^^     ^^^^^^^^ ^^^^^^^^ - bi bits each
     ```"""
+    # TODO: is this the fastest thing? can this be made faster for bi==8 case?
     return ~(~0 << n * bi) // ~(~0 << bi)
 
 
 @dataclasses.dataclass(frozen=True)
 class S:
+    # TODO: do we need these caches?
     """
     shape of an array
     """
@@ -134,11 +136,13 @@ class A:
 
     @classmethod
     def from_const(cls, val: int, s: S, /) -> t.Self:
+        # TODO: fast path for val==0?
         assert val >= 0, f'negative value: {val}'
         return cls(s.mask_array_val * val, s)
 
     @classmethod
     def from_iterable(cls, iterable: t.Iterable[int], s: S, /) -> t.Self:
+        # TODO: can be made faster for s.bi==8 case
         vals = iterable
         vals = [bin(x)[2:] for x in vals]  # convert value item to string of bits
         vals = [x.zfill(s.bi) for x in vals]  # add leading zeros and zeros for padding
@@ -150,13 +154,17 @@ class A:
     def __eq__(self, other: object, /) -> bool:
         if other.__class__ is not A:
             return NotImplemented
-        assert isinstance(other, A), other
+        if self is other:
+            return True
+        assert isinstance(other, A), other  # to make typechecker happy
         return self.s == other.s and self.data == other.data
 
     def __ne__(self, other: object, /) -> bool:
         if other.__class__ is not A:
             return NotImplemented
-        assert isinstance(other, A), other
+        if self is other:
+            return False
+        assert isinstance(other, A), other  # to make typechecker happy
         return self.s != other.s or self.data != other.data
 
     def _check_shape_compatibility(self, s: S, /) -> None:
@@ -179,7 +187,8 @@ class A:
         val = item & mask(self.s.bv)
         return pad, val
 
-    def __iter__(self) -> t.Iterator[int]:
+    def __iter__(self, /) -> t.Iterator[int]:
+        # TODO: can be made faster for s.bi==8 case
         nbits = self.s.bi * self.s.len
         bits = bin(self.data)[2:].zfill(nbits)[::-1]
         for i in range(self.s.len):
@@ -190,13 +199,14 @@ class A:
         return self.s.len
 
     def __getitem__(self, index: int, /) -> int:
-        # WARN: this is O(len) operation
+        # TODO: add bounds checking (index<0 or index>=len)
+        # WARNING: this is O(len) operation
         _, val = self._get_padval(index)
         return val
 
     def __str__(self, /) -> str:
-        # TODO: make this linear over size
-        # (probably dont show padding too)
+        # TODO: make this linear over length
+        # (probably dont show padding too because it should always be zero)
         res = []
         for i in range(self.s.len):
             pad, val = self._get_padval(i)
@@ -211,6 +221,7 @@ class A:
         return f"{self.__class__.__qualname__}({self.data:#0{hex_digits+2}x}, {self.s})"
 
     def __add__(self, other: A | int, /) -> t.Self:
+        # TODO: fast path for other==0?
         other = self._get_binop_operand(other)
         n1 = self.data
         n2 = other.data
@@ -224,6 +235,7 @@ class A:
         return self + other
 
     def __sub__(self, other: A | int, /) -> t.Self:
+        # TODO: fast path for other==0?
         other = self._get_binop_operand(other)
         n1 = self.data
         n2 = other.data
@@ -240,6 +252,7 @@ class A:
 
     def __mul__(self, other: A | int, /) -> t.Self:
         if isinstance(other, int):
+            # TODO: fast path for other==0 or other==1?
             # multiplication by constant
             n = self.data
             n *= other
@@ -252,6 +265,7 @@ class A:
         n1 = self.data
         n2 = other.data
         n = 0
+        # TODO: add comment describing how this works
         for i in range(self.s.bv):
             b = n2
             b >>= i
@@ -299,6 +313,8 @@ class A:
         return self ^ other
 
     def __rshift__(self, b: int, /) -> t.Self:
+        # TODO: what if b<0?
+        # TODO: what if b is too big?
         n = self.data
         n >>= b
         # fill padding with zeros:
@@ -306,6 +322,8 @@ class A:
         return self.__class__(n, self.s)
 
     def __lshift__(self, b: int, /) -> t.Self:
+        # TODO: what if b<0?
+        # TODO: what if b is too big?
         n = self.data
         n <<= b
         # fill padding with zeros:
@@ -366,7 +384,9 @@ class A:
         return self.__class__(n, self.s)
 
     def le(self, other: A | int, /) -> t.Self:
+        # TODO: maybe reimplement this method from scratch to avoid extra work?
         return self.lt(other) | self.eq(other)
 
     def ge(self, other: A | int, /) -> t.Self:
+        # TODO: maybe reimplement this method from scratch to avoid extra work?
         return self.gt(other) | self.eq(other)
