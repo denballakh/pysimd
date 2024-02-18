@@ -151,6 +151,9 @@ class A:
         n = int(bits, 2)
         return cls(n, s)
 
+    # TODO: add from_bytes
+    # TODO: add to_bytes
+
     def __eq__(self, other: object, /) -> bool:
         if other.__class__ is not A:
             return NotImplemented
@@ -207,7 +210,7 @@ class A:
     def __str__(self, /) -> str:
         # TODO: make this linear over length
         # (probably dont show padding too because it should always be zero)
-        res = []
+        res: list[str] = []
         for i in range(self.s.len):
             pad, val = self._get_padval(i)
             res += [f"{pad:0{self.s.bp}b}_{val:0{self.s.bv}b}"]
@@ -248,7 +251,7 @@ class A:
         return self.__class__(n, self.s)
 
     def __rsub__(self, other: int, /) -> t.Self:
-        return (-self) + other
+        return -self + other
 
     def __mul__(self, other: A | int, /) -> t.Self:
         if isinstance(other, int):

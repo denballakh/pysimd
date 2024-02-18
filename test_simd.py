@@ -1,4 +1,3 @@
-import simd
 from simd import A, S
 import pytest
 
