@@ -2,10 +2,12 @@ from __future__ import annotations
 import typing as t
 import dataclasses
 
+T = t.TypeVar('T')
+
 # cache wrapper removes type information from wrapped function:
 if t.TYPE_CHECKING:
 
-    def cache[T](x: T, /) -> T:
+    def cache(x: T, /) -> T:
         ...
 
 else:
@@ -14,7 +16,7 @@ else:
 
 @cache
 def mask(n: int, /) -> int:
-    """```
+    """```py
     11...11
     ^^^^^^^ - n bits
     ```"""
@@ -23,7 +25,7 @@ def mask(n: int, /) -> int:
 
 @cache
 def mask_array(n: int, bi: int, /) -> int:
-    """```
+    """```py
     00...001 00...001 ... 00...001 00...001
            ^        ^            ^        ^ - n items
     ^^^^^^^^ ^^^^^^^^     ^^^^^^^^ ^^^^^^^^ - bi bits each
@@ -41,6 +43,11 @@ class S:
     bv: int  # number of value bits in each item
     bp: int  # number of padding bits in each item
 
+    def __post_init__(self, /) -> None:
+        assert self.len >= 0, f'length should be non-negative: {self}'
+        assert self.bv > 0, f'value width should be positive: {self}'
+        assert self.bp > 0, f'padding width should be positive: {self}'
+
     @property
     def bi(self, /) -> int:
         return self.bp + self.bv
@@ -48,7 +55,7 @@ class S:
     @property
     @cache
     def mask(self, /) -> int:
-        """```
+        """```py
         0000 0101  0000 0100  0000 0011  0000 0010  0000 0001
         ^^^^ ^^^^  ^^^^ ^^^^  ^^^^ ^^^^  ^^^^ ^^^^  ^^^^ ^^^^
         ```"""
@@ -57,7 +64,7 @@ class S:
     @property
     @cache
     def mask_array_val(self, /) -> int:
-        """```
+        """```py
         0000 0001  0000 0001  0000 0001  0000 0001  0000 0001
                 ^          ^          ^          ^          ^
         ```"""
@@ -67,7 +74,7 @@ class S:
     @property
     @cache
     def mask_val(self, /) -> int:
-        """```
+        """```py
         0000 1111  0000 1111  0000 1111  0000 1111  0000 1111
              ^^^^       ^^^^       ^^^^       ^^^^       ^^^^
         ```"""
@@ -77,7 +84,7 @@ class S:
     @property
     @cache
     def mask_array_pad(self, /) -> int:
-        """```
+        """```py
         0001 0000  0001 0000  0001 0000  0001 0000  0001 0000
            ^          ^          ^          ^          ^
         ```"""
@@ -87,7 +94,7 @@ class S:
     @property
     @cache
     def mask_pad(self, /) -> int:
-        """```
+        """```py
         1111 0000  1111 0000  1111 0000  1111 0000  1111 0000
         ^^^^       ^^^^       ^^^^       ^^^^       ^^^^
         ```"""
@@ -95,8 +102,7 @@ class S:
 
 
 class A:
-    """
-    ```
+    """```py
     A(0x_05_04_03_02_01, S(4, 4, 5)):
        0    5     0    4     0    3     0    2     0    1
     0000 0101  0000 0100  0000 0011  0000 0010  0000 0001
@@ -105,15 +111,13 @@ class A:
     ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^ - items
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ - data
             4          3          2          1          0 - items are indexed from least significant to most significant
-    ```
 
-    assumptions:
-      - padding bits are always filled with zeros
-      - all attrs makes sense
-      - .data is nonnegative
-      - if operation requires padding, then it is performed on arrays that do have   enough padding, otherwise behaviour is unspecified
-
-    """
+    requirements:
+      - padding bits must be filled with zeros
+      - nonzero value width and padding width
+      - data is nonnegative
+      - if an array dont have enough padding for the operation, then behaviour is unspecified
+    ```"""
 
     __match_args__ = __slots__ = (
         'data',
@@ -124,10 +128,9 @@ class A:
 
     def __init__(self, data: int, s: S, /) -> None:
         assert data >= 0, f'negative data: {data}'
+        assert data == data & s.mask_val, f'padding bits are not cleared'
         self.data = data
         self.s = s
-        # clear padding bits if they are set for some reason:
-        self.data &= self.s.mask_val
 
     @classmethod
     def from_const(cls, val: int, s: S, /) -> t.Self:
@@ -145,11 +148,15 @@ class A:
         assert isinstance(other, A), other
         return self.s != other.s or self.data != other.data
 
-    def _get_binop_operand(self, other: A | int) -> A:
+    def _check_shape_compatibility(self, s: S, /) -> None:
+        if self.s != s:
+            raise ValueError(f'incompatible shapes: {self.s} and {s}')
+        return
+
+    def _get_binop_operand(self, other: A | int, /) -> A:
         if isinstance(other, int):
             return self.from_const(other, self.s)
-        if self.s != other.s:
-            raise ValueError(f'incompatible shapes: {self.s} and {other.s}')
+        self._check_shape_compatibility(other.s)
         return other
 
     def _get_item(self, i: int, /) -> int:
@@ -207,18 +214,18 @@ class A:
         return self.__class__(n, self.s)
 
     def __rsub__(self, other: int, /) -> t.Self:
-        return self.from_const(other, self.s) - self
+        return (-self) + other
 
     def __mul__(self, other: A | int, /) -> t.Self:
         if isinstance(other, int):
             # multiplication by constant
             n = self.data
             n *= other
+            # fill padding with zeros:
             n &= self.s.mask_val
             return self.__class__(n, self.s)
 
-        if self.s != other.s:
-            raise ValueError
+        self._check_shape_compatibility(other.s)
 
         n1 = self.data
         n2 = other.data
@@ -232,6 +239,7 @@ class A:
             b <<= i
             n += b
 
+        # fill padding with zeros:
         n &= self.s.mask_val
         return self.__class__(n, self.s)
 
@@ -270,12 +278,16 @@ class A:
 
     def __rshift__(self, b: int, /) -> t.Self:
         n = self.data
-        n >>= b  # padding will be cleared later
+        n >>= b
+        # fill padding with zeros:
+        n &= self.s.mask_val
         return self.__class__(n, self.s)
 
     def __lshift__(self, b: int, /) -> t.Self:
         n = self.data
-        n <<= b  # padding will be cleared later
+        n <<= b
+        # fill padding with zeros:
+        n &= self.s.mask_val
         return self.__class__(n, self.s)
 
     def __invert__(self, /) -> t.Self:

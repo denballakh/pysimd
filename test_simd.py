@@ -1,11 +1,25 @@
 import simd
-from simd import A
+from simd import A, S
+import pytest
 
 # shape for testing:
-s = simd.S(5, 4, 4)  # 5 items, 4 bits for padding, 4 bits for values
-s_small = simd.S(4, 2, 2)
+s = S(5, 4, 4)  # 5 items, 4 bits for values, 4 bits for padding
+s_small = S(4, 2, 2)
 
 # fmt: off
+
+def test_init() -> None:
+    with pytest.raises(Exception):
+        A(0, S(-1, 4, 4))
+    with pytest.raises(Exception):
+        A(0, S(5, 4, 0))
+    with pytest.raises(Exception):
+        A(0, S(5, 0, 4))
+    with pytest.raises(Exception):
+        A(-1, S(5, 4, 4))
+    with pytest.raises(Exception):
+        A(0x_05_04_63_02_01, s)
+        #          ^
 
 def test_str() -> None:
     assert (
@@ -40,7 +54,13 @@ def test_eq() -> None:
     )
     assert (
         A(0x_02_04_02_04_02, s) !=
-        A(0x_02_04_02_04_02, simd.S(5, 3, 4))
+        A(0x_02_04_02_04_02, S(5, 3, 5))
+    )
+
+def test_from_const() -> None:
+    assert (
+        A.from_const(5, s) ==
+        A(0x_05_05_05_05_05, s)
     )
 
 def test_add() -> None:
@@ -59,6 +79,16 @@ def test_add() -> None:
         A(0x_05_04_03_02_01, s) ==
         A(0x_03_02_01_00_0f, s)
     )
+
+def test_binops_with_subclasses() -> None:
+    class B(A): ...
+    a = A(0, s)
+    b = B(0, s)
+    assert type(a + a) is A
+    assert type(b + a) is B
+    assert type(a + b) is A  # is this correct?
+    assert type(b + b) is B
+
 
 def test_sub() -> None:
     assert (
