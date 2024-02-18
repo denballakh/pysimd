@@ -134,7 +134,18 @@ class A:
 
     @classmethod
     def from_const(cls, val: int, s: S, /) -> t.Self:
+        assert val >= 0, f'negative value: {val}'
         return cls(s.mask_array_val * val, s)
+
+    @classmethod
+    def from_iterable(cls, iterable: t.Iterable[int], s: S, /) -> t.Self:
+        vals = iterable
+        vals = [bin(x)[2:] for x in vals]  # convert value item to string of bits
+        vals = [x.zfill(s.bi) for x in vals]  # add leading zeros and zeros for padding
+        vals = reversed(vals)  # first item should be the least significant
+        bits = ''.join(vals)
+        n = int(bits, 2)
+        return cls(n, s)
 
     def __eq__(self, other: object, /) -> bool:
         if other.__class__ is not A:
@@ -175,7 +186,17 @@ class A:
             x = bits[i * self.s.bi : (i + 1) * self.s.bi]
             yield int(x[: self.s.bv][::-1], 2)
 
+    def __len__(self, /) -> int:
+        return self.s.len
+
+    def __getitem__(self, index: int, /) -> int:
+        # WARN: this is O(len) operation
+        _, val = self._get_padval(index)
+        return val
+
     def __str__(self, /) -> str:
+        # TODO: make this linear over size
+        # (probably dont show padding too)
         res = []
         for i in range(self.s.len):
             pad, val = self._get_padval(i)
@@ -183,6 +204,7 @@ class A:
         return f"[{", ".join(res)}]"
 
     def __repr__(self, /) -> str:
+        # TODO: what is happening? i have no idea
         bits_per_hex_digit = 4
         hex_digits = self.s.bi * self.s.len / bits_per_hex_digit
         hex_digits = hex_digits.__ceil__()

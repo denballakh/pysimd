@@ -246,4 +246,20 @@ def test_iter() -> None:
     a = A(0x_05_04_03_02_01, s)
     assert list(a) == [1, 2, 3, 4, 5] # note the "reversed" order
 
+def test_len() -> None:
+    a = A(0x_05_04_03_02_01, s)
+    assert len(a) == 5
+
+def test_getitem() -> None:
+    a = A(0x_05_04_03_02_01, s)
+    assert a[0] == 1
+    assert a[1] == 2
+    assert a[2] == 3
+    assert a[3] == 4
+    assert a[4] == 5
+
+def test_from_iterable() -> None:
+    x = [1, 2, 3, 4, 5]
+    assert list(A.from_iterable(x, s)) == x
+
 # fmt: on
