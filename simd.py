@@ -108,7 +108,7 @@ class S:
 
 class A:
     """```py
-    A(0x_05_04_03_02_01, S(4, 4, 5)):
+    A(0x_05_04_03_02_01, S(len=5, bv=4, bp=4)):
        0    5     0    4     0    3     0    2     0    1
     0000 0101  0000 0100  0000 0011  0000 0010  0000 0001
     ^^^^       ^^^^       ^^^^       ^^^^       ^^^^      - padding
@@ -131,6 +131,8 @@ class A:
       bi=bv+bp - width of items
       N=len*bi - number of bits in an underlying int
     ```"""
+
+    # TODO: add reshaping capabilities
 
     __match_args__ = __slots__ = (
         'data',
@@ -215,7 +217,7 @@ class A:
         val = item & mask(self.s.bv)
         return pad, val
 
-    def _get_values_by_indices(self, indices: t.Iterable[int]) -> t.Iterator[int]:
+    def _get_values_by_indices(self, indices: t.Iterable[int], /) -> t.Iterator[int]:
         """
         time complexity: `O(N)` + `O(1)` per iteration
         """
@@ -244,6 +246,9 @@ class A:
         time complexity: `O(N)`
         """
         # TODO: add bounds checking (index<0 or index>=len)
+        # TODO: support slices?
+        #   - step==1 is pretty simple
+        #   - for other steps ._get_values_by_indices might be useful
         _, val = self._get_padval(index)
         return val
 
