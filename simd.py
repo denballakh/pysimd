@@ -150,7 +150,13 @@ class A:
         n = int(bits, 2)
         return cls(n, s)
 
-    # TODO: add from_bytes
+    @classmethod
+    def from_bytes(cls, data: bytes, s: S, /) -> t.Self:
+        # TODO: is this an expected behaviour? maybe it should do different thing?
+        assert s.bi % 8 == 0, f'item width should me a multiple of 8'
+        n = int.from_bytes(data, byteorder='little')
+        return cls(n, s)
+
     # TODO: add to_bytes
 
     def __eq__(self, other: object, /) -> bool:

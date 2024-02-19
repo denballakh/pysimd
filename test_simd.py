@@ -265,5 +265,15 @@ def test_from_iterable() -> None:
     x = [1, 2, 3, 4, 5]
     assert list(A.from_iterable(x, s)) == x
 
+def test_from_bytes() -> None:
+    x = [1, 2, 3, 4, 5]
+    assert list(A.from_bytes(bytes(x), s)) == x
+
+    d = bytes([1, 2, 0, 3, 4, 0])
+    assert list(A.from_bytes(d, S(len=2, bv=16, bp=8))) == [1 + 2 * 256, 3 + 4 * 256]
+
+    with pytest.raises(Exception):
+        A.from_bytes(b'\0\0', S(len=4, bv=2, bp=2))
+
 
 # fmt: on
