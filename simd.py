@@ -54,6 +54,10 @@ class S:
         return self.bp + self.bv
 
     @property
+    def maxval(self, /) -> int:
+        return mask(self.bi)
+
+    @property
     @cache
     def mask(self, /) -> int:
         """```py
@@ -118,6 +122,14 @@ class A:
       - nonzero value width and padding width
       - data is nonnegative
       - if an array dont have enough padding for the operation, then behaviour is unspecified
+
+    notation:
+      len - number of items (aka length of an array)
+      bv - width of values
+      bp - width of padding
+      bi=bv+bp - width of items
+      bi=bv+bp - width of items
+      N=len*bi - number of bits in an underlying int
     ```"""
 
     __match_args__ = __slots__ = (
@@ -182,20 +194,31 @@ class A:
 
     def _get_binop_operand(self, other: A | int, /) -> A:
         if isinstance(other, int):
+            # TODO: what if other<0?
+            # TODO: what if other>maxval?
             return self.from_const(other, self.s)
         self._check_shape_compatibility(other.s)
         return other
 
     def _get_item(self, i: int, /) -> int:
+        """
+        time complexity: `O(N)`
+        """
         return self.data >> (i * self.s.bi) & mask(self.s.bi)
 
     def _get_padval(self, i: int, /) -> tuple[int, int]:
+        """
+        time complexity: `O(N)`
+        """
         item = self._get_item(i)
         pad = item >> self.s.bv
         val = item & mask(self.s.bv)
         return pad, val
 
     def __iter__(self, /) -> t.Iterator[int]:
+        """
+        time complexity: `O(N)` + `O(1)` per iteration
+        """
         # TODO: can be made faster for s.bi==8 case
         nbits = self.s.bi * self.s.len
         bits = f"{self.data:0{nbits}b}"
@@ -205,11 +228,16 @@ class A:
             yield int(x, 2)
 
     def __len__(self, /) -> int:
+        """
+        time complexity: `O(1)`
+        """
         return self.s.len
 
     def __getitem__(self, index: int, /) -> int:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: add bounds checking (index<0 or index>=len)
-        # WARNING: this is O(len) operation
         _, val = self._get_padval(index)
         return val
 
@@ -230,6 +258,9 @@ class A:
         return f"{self.__class__.__qualname__}({self.data:#0{hex_digits+2}x}, {self.s})"
 
     def __add__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: fast path for other==0?
         other = self._get_binop_operand(other)
         n1 = self.data
@@ -244,6 +275,9 @@ class A:
         return self + other
 
     def __sub__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: fast path for other==0?
         other = self._get_binop_operand(other)
         n1 = self.data
@@ -260,9 +294,13 @@ class A:
         return -self + other
 
     def __mul__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity (if `other` is an int): `O(N)`
+        time complexity (if `other` is an array): `O(N*bv)`
+        """
         if isinstance(other, int):
             # TODO: fast path for other==0 or other==1?
-            # multiplication by constant
+            # multiplication by constant:
             n = self.data
             n *= other
             # fill padding with zeros:
@@ -292,6 +330,9 @@ class A:
         return self * other
 
     def __and__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         n1 = self.data
         n2 = other.data
@@ -302,6 +343,9 @@ class A:
         return self & other
 
     def __or__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         n1 = self.data
         n2 = other.data
@@ -312,6 +356,9 @@ class A:
         return self | other
 
     def __xor__(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         n1 = self.data
         n2 = other.data
@@ -322,6 +369,9 @@ class A:
         return self ^ other
 
     def __rshift__(self, b: int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: what if b<0?
         # TODO: what if b is too big?
         n = self.data
@@ -330,7 +380,12 @@ class A:
         n &= self.s.mask_val
         return self.__class__(n, self.s)
 
+    # TODO: does __rrshift__/__rlshift__ make any sense?
+
     def __lshift__(self, b: int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: what if b<0?
         # TODO: what if b is too big?
         n = self.data
@@ -340,17 +395,26 @@ class A:
         return self.__class__(n, self.s)
 
     def __invert__(self, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         n = self.data
         n ^= self.s.mask_val
         return self.__class__(n, self.s)
 
     def __neg__(self, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         n = self.data
         n = self.s.mask_array_pad - n  # assumes there is a padding?
         # n = self.s.mask_val + self.s.mask_array_val - n # works in the same way
         return self.__class__(n, self.s)
 
     def is_true(self, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         n = self.data
         # store 1s in each padding block:
         n |= self.s.mask_array_pad
@@ -362,19 +426,31 @@ class A:
         return self.__class__(n, self.s)
 
     def is_false(self, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         n = self.is_true().data
         n ^= self.s.mask_array_val
         return self.__class__(n, self.s)
 
     def eq(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         return (self ^ other).is_false()
 
     def ne(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         return (self ^ other).is_true()
 
     def lt(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         # (self-other)<0
         n = (self - other).data
@@ -384,6 +460,9 @@ class A:
         return self.__class__(n, self.s)
 
     def gt(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         other = self._get_binop_operand(other)
         # (other-self)<0
         n = (other - self).data
@@ -393,9 +472,15 @@ class A:
         return self.__class__(n, self.s)
 
     def le(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: maybe reimplement this method from scratch to avoid extra work?
         return self.lt(other) | self.eq(other)
 
     def ge(self, other: A | int, /) -> t.Self:
+        """
+        time complexity: `O(N)`
+        """
         # TODO: maybe reimplement this method from scratch to avoid extra work?
         return self.gt(other) | self.eq(other)
