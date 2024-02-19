@@ -215,17 +215,23 @@ class A:
         val = item & mask(self.s.bv)
         return pad, val
 
-    def __iter__(self, /) -> t.Iterator[int]:
+    def _get_values_by_indices(self, indices: t.Iterable[int]) -> t.Iterator[int]:
         """
         time complexity: `O(N)` + `O(1)` per iteration
         """
         # TODO: can be made faster for s.bi==8 case
         nbits = self.s.bi * self.s.len
-        bits = f"{self.data:0{nbits}b}"
-        for i in range(self.s.len):
+        bits = f'{self.data:0{nbits}b}'
+        for i in indices:
             # note: we can't use negative indexing for the range end, because it would fail when i==0
             x = bits[-(i + 1) * self.s.bi + self.s.bp : len(bits) - i * self.s.bi]
             yield int(x, 2)
+
+    def __iter__(self, /) -> t.Iterator[int]:
+        return self._get_values_by_indices(range(self.s.len))
+
+    def __reversed__(self, /) -> t.Iterator[int]:
+        return self._get_values_by_indices(reversed(range(self.s.len)))
 
     def __len__(self, /) -> int:
         """
@@ -242,20 +248,20 @@ class A:
         return val
 
     def __str__(self, /) -> str:
-        # TODO: make this linear over length
-        # (probably dont show padding too because it should always be zero)
-        res: list[str] = []
-        for i in range(self.s.len):
-            pad, val = self._get_padval(i)
-            res += [f"{pad:0{self.s.bp}b}_{val:0{self.s.bv}b}"]
-        return f"[{", ".join(res)}]"
+        return f'[{', '.join(map(str, self))}]'
 
     def __repr__(self, /) -> str:
-        # TODO: what is happening? i have no idea
-        bits_per_hex_digit = 4
-        hex_digits = self.s.bi * self.s.len / bits_per_hex_digit
-        hex_digits = hex_digits.__ceil__()
-        return f"{self.__class__.__qualname__}({self.data:#0{hex_digits+2}x}, {self.s})"
+        if self.s.bi % 4 == 0:
+            # item can be represented with hex digits:
+            width = self.s.bi // 4
+            chunks = (hex(x)[2:].zfill(width) for x in reversed(self))
+            number = '0x_' + '_'.join(chunks)
+        else:
+            # otherwise use binary:
+            width = self.s.bi
+            chunks = (bin(x)[2:].zfill(width) for x in reversed(self))
+            number = '0b_' + '_'.join(chunks)
+        return f'{self.__class__.__qualname__}({number}, {self.s})'
 
     def __add__(self, other: A | int, /) -> t.Self:
         """
